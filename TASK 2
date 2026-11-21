@@ -1,0 +1,42 @@
+typedef struct { int day, month, year; } Date;
+typedef struct { char city[40]; char pin[7]; } Address;
+typedef struct { char name[60]; Address address; } Party;
+typedef enum { NORMAL, EXPRESS } Service;
+typedef struct {
+    int id; double weight_kg; Date booked;
+    Party sender, receiver; Service service; double charge;
+} Parcel;
+ 
+/* Sort by ascending weight. For each i find minimum in suffix i..n-1,
+   then swap whole Parcel records. O(n^2) time, O(1) extra space. */
+void sort_weight(Parcel p[], int n) {
+    for (int i=0; i<n-1; ++i) {
+        int min=i;
+        for (int j=i+1; j<n; ++j)
+            if (p[j].weight_kg < p[min].weight_kg) min=j;
+        if (min!=i) { Parcel t=p[i]; p[i]=p[min]; p[min]=t; }
+    }
+}
+/* List if receiver city matches requested city. O(n*L) char comparisons. */
+void list_city(const Parcel p[], int n, const char *city) {
+    for (int i=0; i<n; ++i)
+        if (strcmp(p[i].receiver.address.city,city)==0)
+            printf("%d %s %.1f kg\n",p[i].id,
+                   p[i].receiver.name,p[i].weight_kg);
+}
+SIMATS-style algorithmic pseudocode:
+ALGORITHM SortParcelsByWeight(P, n)
+FOR i <- 0 TO n-2
+    minIndex <- i
+    FOR j <- i+1 TO n-1
+        IF P[j].weight < P[minIndex].weight THEN minIndex <- j
+    END FOR
+    SWAP P[i] WITH P[minIndex]
+END FOR
+END ALGORITHM
+ 
+ALGORITHM ListParcelsForCity(P, n, targetCity)
+FOR i <- 0 TO n-1
+    IF P[i].receiver.address.city = targetCity THEN DISPLAY P[i]
+END FOR
+END ALGORITHM
