@@ -1,0 +1,76 @@
+#include <stdio.h>
+#include <string.h>
+ 
+#define MAX_ITEMS 20
+#define MAX_SALES 200
+typedef struct { int day,month,year; } Date;
+typedef enum { PACKAGED, COOKED, COMBO } Kind;
+typedef struct { int id[3], qty[3], n; } Combo;
+typedef struct {
+    int id; char name[40]; double price; int stock; Kind kind;
+    union { Date expiry; int prepared_minute; Combo combo; } info;
+} Item;
+typedef struct { int id,qty; double unit,revenue; } Sale;
+ 
+/* Civil-date serial: suitable for ordinary Gregorian dates in this demo. */
+static long serial(Date d) {
+    int y=d.year, m=d.month;
+    y -= (m<=2);
+    long era=(y>=0?y:y-399)/400;
+    unsigned yoe=(unsigned)(y-era*400);
+    unsigned doy=(153*(unsigned)(m+(m>2?-3:9))+2)/5+(unsigned)d.day-1;
+    unsigned doe=yoe*365+yoe/4-yoe/100+doy;
+    return era*146097+(long)doe;
+}
+static int find_item(const Item a[], int n, int id) {
+    for (int i=0;i<n;++i) if (a[i].id==id) return i;
+    return -1;
+}
+static int record_sale(Item a[], int n, Sale sales[], int *ns,
+                       int id, int qty) {
+    int k=find_item(a,n,id);
+    if (k<0 || qty<=0 || qty>a[k].stock || *ns>=MAX_SALES) return 0;
+    Sale s={id,qty,a[k].price,a[k].price*qty};
+    a[k].stock-=qty; sales[(*ns)++]=s; return 1;
+}
+static void expiry_warnings(const Item a[], int n, Date today) {
+    for (int i=0;i<n;++i) if (a[i].kind==PACKAGED) {
+        long days=serial(a[i].info.expiry)-serial(today);
+        if (days>=0 && days<=2)
+            printf("Expiry warning: %s expires in %ld day(s)\n",a[i].name,days);
+    }
+}
+static void revenue_summary(const Sale s[], int n) {
+    Sale sorted[MAX_SALES];
+    for (int i=0;i<n;++i) sorted[i]=s[i];
+    for (int i=1;i<n;++i) {
+        Sale key=sorted[i]; int j=i;
+        while (j>0 && sorted[j-1].revenue<key.revenue) {
+            sorted[j]=sorted[j-1]; --j;
+        }
+        sorted[j]=key;
+    }
+    puts("Revenue-sorted sales:");
+    for (int i=0;i<n;++i)
+        printf("item %d qty %d revenue %.2f\n",
+               sorted[i].id,sorted[i].qty,sorted[i].revenue);
+}
+int main(void) {
+    Item items[MAX_ITEMS]={
+        {.id=1,.name="Milk",.price=30,.stock=4,.kind=PACKAGED,
+         .info.expiry={20,11,2026}},
+        {.id=2,.name="Sandwich",.price=55,.stock=5,.kind=COOKED,
+         .info.prepared_minute=600},
+        {.id=3,.name="Snack combo",.price=75,.stock=2,.kind=COMBO,
+         .info.combo={{1,2,0},{1,1,0},2}}
+    };
+    int nitems=3; Sale sales[MAX_SALES]; int ns=0;
+    Date today={19,11,2026};
+    expiry_warnings(items,nitems,today);
+    printf("Normal sale: %s\n",record_sale(items,nitems,sales,&ns,1,2)?"accepted":"rejected");
+    printf("Insufficient stock: %s\n",record_sale(items,nitems,sales,&ns,2,99)?"accepted":"rejected");
+    printf("Cooked item sale: %s\n",record_sale(items,nitems,sales,&ns,2,1)?"accepted":"rejected");
+    revenue_summary(sales,ns);
+    printf("Milk stock remaining: %d\n",items[0].stock);
+    return 0;
+} 
