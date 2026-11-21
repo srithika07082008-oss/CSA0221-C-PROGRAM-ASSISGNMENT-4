@@ -1,0 +1,48 @@
+#include <stdio.h>
+#include <string.h>
+ 
+#define CAPACITY 100
+#define NAME_LEN 100
+#define PHONE_LEN 16       /* room for up to 15 chars plus '\0' */
+ 
+typedef struct { int systolic, diastolic; } BloodPressure;
+typedef struct { int day, month, year; } VisitDate;
+typedef struct {
+    char name[NAME_LEN];
+    int age;
+    char phone[PHONE_LEN];
+    BloodPressure bp;
+    VisitDate visit;
+} Patient;
+typedef struct { Patient items[CAPACITY]; size_t count; } Register;
+ 
+int add_patient(Register *r, const Patient *src) {
+    if (r == NULL || src == NULL || r->count >= CAPACITY) return 0;
+    if (src->age < 0 || src->age > 130) return 0;
+    if (src->bp.systolic <= 0 || src->bp.diastolic <= 0) return 0;
+    if (memchr(src->name, '\0', sizeof src->name) == NULL ||
+        memchr(src->phone, '\0', sizeof src->phone) == NULL) return 0;
+    r->items[r->count++] = *src;       /* whole record copied together */
+    return 1;
+}
+void sort_by_age(Register *r) {
+    if (r == NULL) return;
+    for (size_t i=1; i<r->count; ++i) {
+        Patient key=r->items[i]; size_t j=i;
+        while (j>0 && r->items[j-1].age > key.age) {
+            r->items[j]=r->items[j-1]; --j;
+        }
+        r->items[j]=key;
+    }
+}
+int main(void) {
+    Register r={0};
+    Patient p={"Asha Kumar",20,"09876543210",{120,80},{19,11,2026}};
+    if (!add_patient(&r,&p)) { puts("Patient rejected"); return 1; }
+    sort_by_age(&r);
+    printf("%s age %d BP %d/%d on %02d/%02d/%04d\n",
+        r.items[0].name,r.items[0].age,r.items[0].bp.systolic,
+        r.items[0].bp.diastolic,r.items[0].visit.day,
+        r.items[0].visit.month,r.items[0].visit.year);
+    return 0;
+}
